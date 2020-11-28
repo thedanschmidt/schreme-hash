@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "schreme_hash.h"
@@ -18,11 +19,12 @@ int schreme_fkey_lookup_table_insert(schreme_fkey_lookup_table* tbl,
     if (new_size == 0) new_size = SCHREME_TBL_MIN_SIZE;
     schreme_fkey_lookup_table_resize_kv_tbl(tbl, new_size);
   }
-  while (tbl->val_tbl_size + val.size >= tbl->kv_tbl_capacity)
+  if (tbl->val_tbl_size + val.size >= tbl->val_tbl_capacity)
   {
     // resize val_tbl
     uint32_t new_size = tbl->val_tbl_size * SCHREME_TBL_GROWTH_FACTOR;
     if (new_size == 0) new_size = SCHREME_TBL_MIN_SIZE;
+    // TODO make sure new size is big enough
     schreme_fkey_lookup_table_resize_val_tbl(tbl, new_size);
   }
 
@@ -32,10 +34,13 @@ int schreme_fkey_lookup_table_insert(schreme_fkey_lookup_table* tbl,
   new_kv->key = key;
   new_kv->val_offset = new_val_ptr - tbl->val_tbl;
   new_kv->val_size = val.size;
+
+  ++tbl->kv_tbl_size;
+  ++tbl->val_tbl_size;
 }
 
-void schreme_fkey_looup_table_tbl_lookup(schreme_fkey_lookup_table* tbl, 
-                                         uint32_t key, schreme_tbl_val* val)
+void schreme_fkey_lookup_table_lookup(schreme_fkey_lookup_table* tbl, 
+                                      uint32_t key, schreme_tbl_val* val)
 {
   for (size_t i = 0; i < tbl->kv_tbl_size; ++i)
   {
@@ -63,6 +68,8 @@ void schreme_fkey_lookup_table_init(schreme_fkey_lookup_table* tbl)
   tbl->val_tbl = NULL;
   tbl->kv_tbl_size = 0;
   tbl->val_tbl_size = 0;
+  tbl->kv_tbl_capacity = 0;
+  tbl->val_tbl_capacity = 0;
 }
 
 void schreme_fkey_lookup_table_resize_kv_tbl(schreme_fkey_lookup_table* tbl, uint32_t size)
@@ -87,11 +94,32 @@ void schreme_fkey_lookup_table_resize_kv_tbl(schreme_fkey_lookup_table* tbl, uin
     tbl->kv_tbl = (schreme_kv*) malloc(size * sizeof(schreme_kv));
     memset(tbl->kv_tbl, 0, size * sizeof(schreme_kv));
   }
-  tbl->kv_tbl_size = size;
+  tbl->kv_tbl_capacity = size;
 }
 
 void schreme_fkey_lookup_table_resize_val_tbl(schreme_fkey_lookup_table* tbl, uint32_t size)
 {
-
+  // TODO merge this logic with kv_tbl
+  if (tbl->val_tbl)
+  {
+    uint8_t* old_tbl = tbl->val_tbl;
+    uint8_t* new_tbl = (uint8_t*) malloc(size * sizeof(uint8_t));
+    if (size < tbl->val_tbl_size)
+    {
+      memcpy(new_tbl, old_tbl, size*sizeof(uint8_t));
+    }
+    else
+    {
+      memcpy(new_tbl, old_tbl, tbl->val_tbl_size*sizeof(uint8_t));
+      memset(new_tbl + tbl->val_tbl_size, 0, (size - tbl->val_tbl_size) * sizeof(uint8_t));
+    }
+    free(old_tbl);
+  }
+  else
+  {
+    tbl->val_tbl = (uint8_t*) malloc(size * sizeof(uint8_t));
+    memset(tbl->val_tbl, 0, size * sizeof(uint8_t));
+  }
+  tbl->val_tbl_capacity = size;
 }
 
