@@ -24,10 +24,11 @@ int schreme_fkey_lookup_table_insert(schreme_fkey_lookup_table* tbl,
     // resize val_tbl
     uint32_t new_size = tbl->val_tbl_size * SCHREME_TBL_GROWTH_FACTOR;
     if (new_size == 0) new_size = SCHREME_TBL_MIN_SIZE;
-    // TODO make sure new size is big enough
     schreme_fkey_lookup_table_resize_val_tbl(tbl, new_size);
   }
 
+  // TODO make sure new size is big enough
+  
   schreme_kv* new_kv = tbl->kv_tbl + tbl->kv_tbl_size;
   uint8_t* new_val_ptr = tbl->val_tbl + tbl->val_tbl_size;
   memcpy(new_val_ptr, val.data, val.size * sizeof(uint8_t));
@@ -74,52 +75,36 @@ void schreme_fkey_lookup_table_init(schreme_fkey_lookup_table* tbl)
 
 void schreme_fkey_lookup_table_resize_kv_tbl(schreme_fkey_lookup_table* tbl, uint32_t size)
 {
-  if (tbl->kv_tbl)
-  {
-    schreme_kv* old_tbl = tbl->kv_tbl;
-    schreme_kv* new_tbl = (schreme_kv*) malloc(size * sizeof(schreme_kv));
-    if (size < tbl->kv_tbl_size)
-    {
-      memcpy(new_tbl, old_tbl, size*sizeof(schreme_kv));
-    }
-    else
-    {
-      memcpy(new_tbl, old_tbl, tbl->kv_tbl_size*sizeof(schreme_kv));
-      memset(new_tbl + tbl->kv_tbl_size, 0, (size - tbl->kv_tbl_size) * sizeof(schreme_kv));
-    }
-    free(old_tbl);
-  }
-  else
-  {
-    tbl->kv_tbl = (schreme_kv*) malloc(size * sizeof(schreme_kv));
-    memset(tbl->kv_tbl, 0, size * sizeof(schreme_kv));
-  }
+  schreme_table_resize((void**) &tbl->kv_tbl, sizeof(tbl->kv_tbl), tbl->kv_tbl_size, size);
   tbl->kv_tbl_capacity = size;
 }
 
 void schreme_fkey_lookup_table_resize_val_tbl(schreme_fkey_lookup_table* tbl, uint32_t size)
 {
-  // TODO merge this logic with kv_tbl
-  if (tbl->val_tbl)
+  schreme_table_resize((void**) &tbl->val_tbl, sizeof(tbl->val_tbl), tbl->val_tbl_size, size);
+  tbl->val_tbl_capacity = size;
+}
+
+void schreme_table_resize(void** tbl, uint32_t entry_size, uint32_t old_size, uint32_t new_size)
+{
+  void* old_tbl = *tbl;
+  void* new_tbl = malloc(new_size * entry_size);
+  if (old_tbl)
   {
-    uint8_t* old_tbl = tbl->val_tbl;
-    uint8_t* new_tbl = (uint8_t*) malloc(size * sizeof(uint8_t));
-    if (size < tbl->val_tbl_size)
+    if (new_size < old_size)
     {
-      memcpy(new_tbl, old_tbl, size*sizeof(uint8_t));
+      memcpy(new_tbl, old_tbl, new_size * entry_size);
     }
     else
     {
-      memcpy(new_tbl, old_tbl, tbl->val_tbl_size*sizeof(uint8_t));
-      memset(new_tbl + tbl->val_tbl_size, 0, (size - tbl->val_tbl_size) * sizeof(uint8_t));
+      memcpy(new_tbl, old_tbl, old_size*entry_size);
+      memset(new_tbl + old_size, 0, (new_size - old_size) * entry_size);
     }
     free(old_tbl);
   }
   else
   {
-    tbl->val_tbl = (uint8_t*) malloc(size * sizeof(uint8_t));
-    memset(tbl->val_tbl, 0, size * sizeof(uint8_t));
+    memset(new_tbl, 0, new_size * entry_size);
   }
-  tbl->val_tbl_capacity = size;
+  *tbl = new_tbl;
 }
-
