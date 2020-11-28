@@ -1,10 +1,28 @@
+#include <string.h>
+
 #include "munit.h"
 
 #include "schreme_hash.h"
 
 static MunitResult insert_small(const MunitParameter params[], void* data)
 {
-  munit_assert( 1 == 1 );
+  uint32_t key = 8;
+  const char* payload = "value1";
+  schreme_tbl_val val;
+  int payload_size = strlen(payload);
+  val.size = payload_size;
+  val.data = (uint8_t*) payload;
+  
+  schreme_fkey_lookup_table tbl;
+  schreme_fkey_lookup_table_init(&tbl);
+  schreme_fkey_lookup_table_insert(&tbl, key, val);
+
+  val.size = 0;
+  val.data = NULL;
+  schreme_fkey_lookup_table_lookup(&tbl, key, &val);
+
+  munit_assert( val.size == payload_size );
+  munit_assert( memcmp(val.data, payload, payload_size)  == 0 );
 }
 
 static MunitTest tests[] =
